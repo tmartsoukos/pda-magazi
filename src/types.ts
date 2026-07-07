@@ -49,4 +49,4 @@ export interface CartItem {
 
 export const money = (v: number | string) => `${Number(v).toFixed(2)} €`
 
-export const shopName = () => localStorage.getItem('shopName') || 'Το Μαγαζί'
+export const shopName = () => localStorage.getItem('shopName') || 'ALLEGRA PIZZA // PASTA'
