@@ -65,9 +65,12 @@ export default function OrderPage() {
     () => cart.reduce((s, ci) => s + ci.product.price * ci.qty, 0),
     [cart],
   )
-  const sentTotal = useMemo(
-    () => items.reduce((s, it) => s + Number(it.unit_price) * it.qty, 0),
-    [items],
+  const unpaidItems = useMemo(() => items.filter((it) => !it.paid), [items])
+  const paidItems = useMemo(() => items.filter((it) => it.paid), [items])
+  // Υπόλοιπο προς πληρωμή = μόνο τα απλήρωτα είδη
+  const dueTotal = useMemo(
+    () => unpaidItems.reduce((s, it) => s + Number(it.unit_price) * it.qty, 0),
+    [unpaidItems],
   )
 
   function addToCart(p: Product) {
@@ -127,6 +130,32 @@ export default function OrderPage() {
     }
   }
 
+  /** Πληρωμή μίας μονάδας: γραμμή με qty>1 σπάει, αλλιώς μαρκάρεται όλη */
+  async function payOne(it: OrderItem) {
+    if (it.qty > 1) {
+      await supabase.from('order_items').update({ qty: it.qty - 1 }).eq('id', it.id)
+      await supabase.from('order_items').insert({
+        order_id: it.order_id,
+        product_id: it.product_id,
+        product_name: it.product_name,
+        unit_price: it.unit_price,
+        qty: 1,
+        notes: it.notes,
+        printed: it.printed,
+        paid: true,
+      })
+    } else {
+      await supabase.from('order_items').update({ paid: true }).eq('id', it.id)
+    }
+    await load()
+  }
+
+  /** Αναίρεση πληρωμής είδους */
+  async function unpay(it: OrderItem) {
+    await supabase.from('order_items').update({ paid: false }).eq('id', it.id)
+    await load()
+  }
+
   async function deleteItem(it: OrderItem) {
     if (!confirm(`Διαγραφή «${it.product_name}» από την παραγγελία;`)) return
     await supabase.from('order_items').delete().eq('id', it.id)
@@ -135,7 +164,7 @@ export default function OrderPage() {
 
   async function closeOrder() {
     if (!order) return
-    if (!confirm(`Κλείσιμο τραπεζιού — σύνολο ${money(sentTotal)};`)) return
+    if (!confirm(`Κλείσιμο τραπεζιού — υπόλοιπο ${money(dueTotal)};`)) return
     await supabase
       .from('orders')
       .update({ status: 'closed', closed_at: new Date().toISOString() })
@@ -190,10 +219,10 @@ export default function OrderPage() {
         ))}
       </div>
 
-      {items.length > 0 && (
+      {unpaidItems.length > 0 && (
         <section className="sent-items">
-          <h2>Σταλμένα ({money(sentTotal)})</h2>
-          {items.map((it) => (
+          <h2>Σταλμένα — υπόλοιπο {money(dueTotal)}</h2>
+          {unpaidItems.map((it) => (
             <div key={it.id} className="item-row">
               <span className="qty">{it.qty}×</span>
               <span className="name">
@@ -201,8 +230,33 @@ export default function OrderPage() {
                 {it.notes && <em> — {it.notes}</em>}
               </span>
               <span>{money(Number(it.unit_price) * it.qty)}</span>
+              <button className="pay-btn" onClick={() => payOne(it)}>
+                Πληρωμή
+              </button>
               <button className="link-btn danger" onClick={() => deleteItem(it)}>
                 ✕
+              </button>
+            </div>
+          ))}
+        </section>
+      )}
+
+      {paidItems.length > 0 && (
+        <section className="paid-items">
+          <h2>
+            Πληρωμένα (
+            {money(paidItems.reduce((s, it) => s + Number(it.unit_price) * it.qty, 0))})
+          </h2>
+          {paidItems.map((it) => (
+            <div key={it.id} className="item-row paid">
+              <span className="qty">{it.qty}×</span>
+              <span className="name">
+                {it.product_name}
+                {it.notes && <em> — {it.notes}</em>}
+              </span>
+              <span>{money(Number(it.unit_price) * it.qty)}</span>
+              <button className="link-btn" onClick={() => unpay(it)}>
+                ↩
               </button>
             </div>
           ))}
@@ -258,7 +312,7 @@ export default function OrderPage() {
               Λογαριασμός
             </button>
             <button className="action-btn success" onClick={closeOrder}>
-              Κλείσιμο {money(sentTotal)}
+              Κλείσιμο {money(dueTotal)}
             </button>
           </>
         )}

@@ -37,10 +37,12 @@ export default function PrintPage() {
               .eq('order_id', orderId!)
               .eq('printed', false)
               .order('created_at')
-          : supabase
+          : // Λογαριασμός: μόνο τα απλήρωτα είδη (υπόλοιπο)
+            supabase
               .from('order_items')
               .select('*')
               .eq('order_id', orderId!)
+              .eq('paid', false)
               .order('created_at'),
       ])
       setTable(t.data)
@@ -99,7 +101,7 @@ export default function PrintPage() {
         <hr />
         <div className="ticket-row ticket-total">
           <span>ΣΥΝΟΛΟ</span>
-          <span>{money(mode === 'all' ? Number(order.total) : total)}</span>
+          <span>{money(total)}</span>
         </div>
         <p className="ticket-sub">Δεν αποτελεί φορολογική απόδειξη</p>
       </div>

@@ -37,6 +37,7 @@ export interface OrderItem {
   qty: number
   notes: string
   printed: boolean
+  paid: boolean
   created_at: string
 }
 
