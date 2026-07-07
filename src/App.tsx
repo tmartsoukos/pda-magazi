@@ -27,6 +27,8 @@ export default function App() {
   if (!session) return <Login />
 
   const isPrint = location.pathname.startsWith('/print')
+  // Μέσα σε τραπέζι το κάτω μενού κρύβεται — τη θέση του παίρνουν οι ενέργειες παραγγελίας
+  const hideNav = isPrint || location.pathname.startsWith('/order')
 
   return (
     <div className="app">
@@ -40,7 +42,7 @@ export default function App() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
-      {!isPrint && (
+      {!hideNav && (
         <nav className="bottom-nav no-print">
           <NavLink to="/" end>🍽️ Τραπέζια</NavLink>
           <NavLink to="/menu">📋 Μενού</NavLink>
